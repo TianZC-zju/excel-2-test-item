@@ -22,10 +22,13 @@ def parser_merged_cell(sheet: Worksheet, row, col):
     return cell
 
 
-def get_xlsx(name):
+def get_xlsx(name, src_name, dst_name):
     wb = load_workbook(name)
-    ws_data = wb.get_sheet_by_name('data')
-    ws_result = wb.get_sheet_by_name("result")
+    ws_data = wb.get_sheet_by_name(src_name)
+    if dst_name in wb.sheetnames:
+        ws_result = wb.get_sheet_by_name(dst_name)
+    else:
+        ws_result = wb.create_sheet(dst_name)
     row1 = ['测试案例编号', '计划测试日期', '前置条件', '测试概述', '操作步骤名称', '步骤描述', '预期结果', '状态']
 
     # 添加表头
@@ -75,9 +78,9 @@ def get_xlsx(name):
             for cell in column:
                 new_cell = parser_merged_cell(ws_data, cell.row, cell.column)
                 if value == '':
-                    value = '当'+new_cell.value+'时，'
+                    value = '当' + new_cell.value + '时，'
                     continue
-                value = value + '测试' + new_cell.value+'的情况'
+                value = value + '测试' + new_cell.value + '的情况'
 
         _ = ws_result.cell(row=rowIndex + 2, column=4, value=value)
         value = ''
@@ -115,6 +118,10 @@ def get_xlsx(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    get_xlsx('/Users/tianzc/同步文件夹/pt/userLogin.xlsx')
+    fileList = [
+        r"D:\ZSpaceFile\blockChain\userLogin.xlsx",
+        r"D:\ZSpaceFile\blockChain\userOrder.xlsx",
+    ]
+    get_xlsx(fileList[1], 'userOrder', 'userOrderTest')
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
