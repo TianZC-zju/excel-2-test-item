@@ -1,6 +1,9 @@
-from openpyxl import load_workbook;
+from openpyxl import load_workbook, Workbook
+import pandas as pd
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.cell import MergedCell
+import os
 
 
 def parser_merged_cell(sheet: Worksheet, row, col):
@@ -22,7 +25,7 @@ def parser_merged_cell(sheet: Worksheet, row, col):
     return cell
 
 
-def get_xlsx(name, src_name, dst_name):
+def get_xlsx(name, src_name, dst_name, order, resultDir):
     wb = load_workbook(name)
     ws_data = wb.get_sheet_by_name(src_name)
     if dst_name in wb.sheetnames:
@@ -51,7 +54,7 @@ def get_xlsx(name, src_name, dst_name):
     for rowIndex in range(len(functions)):
         if functions[rowIndex] is None:
             continue
-        _ = ws_result.cell(row=rowIndex + 2, column=1, value='g00{}'.format(rowIndex))
+        _ = ws_result.cell(row=rowIndex + 2, column=1, value='g{}00{}'.format(order, rowIndex))
 
     # 填写前置条件
     for rowIndex in range(len(functions)):
@@ -114,14 +117,53 @@ def get_xlsx(name, src_name, dst_name):
         _ = ws_result.cell(row=rowIndex + 2, column=7, value=expected[rowIndex])
 
     wb.save(name)
+    if not os.path.exists(resultDir):
+        wbn = Workbook()
+        wbn.save(resultDir)
+
+    wb2 = load_workbook(resultDir)
+
+    if dst_name in wb2.sheetnames:
+        ws_result_new = wb2.get_sheet_by_name(dst_name)
+    else:
+        ws_result_new = wb2.create_sheet(dst_name)
+    for value in ws_result.iter_rows(min_row=1, max_row=ws_result.max_row, min_col=1, max_col=ws_result.max_column, values_only=True):
+        value = list(value)
+        ws_result_new.append(value)
+
+    if 'Sheet' in wb2.sheetnames:
+        del wb2['Sheet']
+
+    wb2.save(resultDir)
+
+
+
+
+def reset_col(filename):
+    wb = load_workbook(filename)
+    for sheet in wb.sheetnames:
+        ws = wb[sheet]
+        df = pd.read_excel(filename, sheet).fillna('-')
+        df.loc[len(df)] = list(df.columns)  # 把标题行附加到最后一行
+        for col in df.columns:
+            index = list(df.columns).index(col)  # 列序号
+            letter = get_column_letter(index + 1)  # 列字母
+            collen = df[col].apply(lambda x: len(str(x).encode())).max()  # 获取这一列长度的最大值 当然也可以用min获取最小值 mean获取平均值
+            ws.column_dimensions[letter].width = collen * 1   # 也就是列宽为最大长度*1.2 可以自己调整
+
+    wb.save(filename)
+
+
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    fileList = [
-        r"D:\ZSpaceFile\blockChain\userLogin.xlsx",
-        r"D:\ZSpaceFile\blockChain\userOrder.xlsx",
-    ]
-    get_xlsx(fileList[1], 'userOrder', 'userOrderTest')
+    baseDir = r"/Users/tianzc/同步文件夹/双向同步/honor14/论文/my/测试用例/"
+    fList = os.listdir(baseDir)
+    fileNameList = [file for file in fList if 'xlsx' in file]
+    resultDir = './result.xlsx'
+    for i in range(len(fileNameList)):
+        get_xlsx(baseDir + fileNameList[i], fileNameList[i].replace('.xlsx', ''), fileNameList[i].replace('.xlsx', '测试用例'), i,resultDir )
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    reset_col(resultDir)
+
